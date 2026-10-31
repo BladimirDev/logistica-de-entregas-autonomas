@@ -1,0 +1,30 @@
+@startuml
+title C4 Nivel 2 - Sistema de Orquestracao de AGVs
+
+left to right direction
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam packageStyle rectangle
+
+actor "Operador Logistico" as operador
+
+rectangle "Sistema de Orquestracao de AGVs" {
+    rectangle "Aplicacao Web\n[Container: Interface Web]\nCadastro e monitoramento" as app
+    rectangle "API de Orquestracao\n[Container: Servico]\nGerencia entregas e missoes" as api
+    rectangle "Planejador de Rotas\n[Container: Servico]\nCalcula rotas e seleciona AGVs" as rotas
+    database "Banco de Dados\n[Container: Banco relacional]\nEntregas, AGVs, missoes e status" as db
+}
+
+rectangle "API de Geolocalizacao\n[Sistema externo]" as geo
+rectangle "AGVs\nVeiculos autonomos" as agv
+
+operador --> app : Utiliza
+app --> api : HTTPS / solicitacoes
+api --> db : Consulta e atualiza dados
+api --> rotas : Solicita planejamento
+rotas --> db : Consulta AGVs disponiveis
+rotas --> geo : Consulta dados de rota
+api --> agv : Envia missoes
+agv --> api : Envia atualizacoes
+
+@enduml

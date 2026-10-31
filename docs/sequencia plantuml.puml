@@ -1,0 +1,41 @@
+@startuml
+title Diagrama de Sequencia - Despacho de Entrega
+autonumber
+
+actor "Operador Logistico" as Operador
+participant "Aplicacao Web" as App
+participant "API de Orquestracao" as API
+database "Banco de Dados" as DB
+participant "Planejador de Rotas" as Rotas
+participant "API de Geolocalizacao" as Geo
+participant "AGV" as AGV
+
+Operador -> App : Cadastrar ordem de entrega
+App -> API : Enviar ordem e prioridade
+
+API -> DB : Salvar ordem de entrega
+DB --> API : Confirmar registro
+
+API -> Rotas : Solicitar planejamento
+Rotas -> DB : Consultar AGVs disponiveis
+DB --> Rotas : Retornar AGVs disponiveis
+
+Rotas -> Geo : Consultar dados para calcular rota
+Geo --> Rotas : Retornar informacoes da rota
+
+Rotas -> Rotas : Selecionar AGV e definir rota
+Rotas --> API : Retornar rota e AGV selecionado
+
+API -> DB : Registrar missao e status planejado
+DB --> API : Confirmar registro
+
+API -> AGV : Enviar missao e rota
+AGV --> API : Confirmar recebimento
+
+API -> DB : Atualizar status para em andamento
+DB --> API : Confirmar atualizacao
+
+API --> App : Informar despacho realizado
+App --> Operador : Exibir status da entrega
+
+@enduml
