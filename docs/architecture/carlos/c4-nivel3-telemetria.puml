@@ -1,0 +1,44 @@
+@startuml
+title C4 Nivel 3 - Componentes do Serviço de Telemetria
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam rectangle {
+    BackgroundColor<<componente>> #85BBF0
+    BackgroundColor<<container>> #1168BD
+    FontColor<<container>> #FFFFFF
+    BackgroundColor<<externo>> #999999
+    FontColor<<externo>> #FFFFFF
+}
+
+rectangle "AGVs\n[Sistema externo]" as agv <<externo>>
+queue "Broker MQTT\n[Container: Mosquitto]" as broker
+
+rectangle "Serviço de Telemetria\n[Container: Node.js]" {
+    rectangle "TelemetriaConsumer\n[Componente: MQTT.js]\nImplementa ITelemetriaService" as consumer <<componente>>
+    rectangle "Validador\n[Componente]\nConfere dados e timestamp" as validador <<componente>>
+    rectangle "AnalisadorBateria\n[Componente]\nRegra bateria < 15" as analisador <<componente>>
+    rectangle "LeituraRepository\n[Componente: pg]\nImplementa ILeituraRepository" as repo <<componente>>
+    rectangle "VerificadorSemSinal\n[Componente: setInterval]\n5 segundos sem leitura" as watchdog <<componente>>
+    rectangle "AlertaPublisher\n[Componente: amqplib]\nUsa IFilaEventos" as pub <<componente>>
+}
+
+database "Banco de Dados\n[Container: PostgreSQL]" as bd
+queue "RabbitMQ\n[Container: RabbitMQ]" as fila
+rectangle "API de Orquestração\n[Container: Node.js + NestJS]\nImplementa IAlertaHandler" as api <<container>>
+rectangle "Aplicação Web\n[Container: React]" as web <<container>>
+
+agv --> broker : publicarTelemetria()\n[MQTT QoS 0]
+broker --> consumer : onTelemetria(TelemetriaDTO)\n[MQTT]
+consumer --> validador : Valida
+validador --> repo : salvarLeitura()
+validador --> analisador : Verifica bateria
+analisador --> pub : publicarAlerta() / publicarPosicao()
+watchdog --> pub : Alerta OFFLINE
+repo --> bd : SQL\n[TCP 5432]
+pub --> fila : Publica\n[AMQP]
+fila --> api : onAlerta() / onPosicao()\n[AMQP]
+api --> web : mostrarAlerta() / atualizarMapa()\n[WebSocket]
+
+@enduml
