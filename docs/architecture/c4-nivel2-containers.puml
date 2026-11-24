@@ -1,0 +1,51 @@
+@startuml
+title C4 Nivel 2 - Containers do Sistema de Entregas Autonomas
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam rectangle {
+    BackgroundColor<<container>> #1168BD
+    FontColor<<container>> #FFFFFF
+    BackgroundColor<<externo>> #999999
+    FontColor<<externo>> #FFFFFF
+}
+
+actor "Operador Logístico" as operador
+
+rectangle "Sistema de Entregas Autônomas" {
+    rectangle "Aplicação Web\n[Container: React]\nCadastro de ordens e monitoramento" as web <<container>>
+    rectangle "API de Orquestração\n[Container: Node.js + NestJS]\nOrdens, prioridade, despacho e replanejamento" as api <<container>>
+    rectangle "Planejador de Rotas\n[Container: Python + gRPC]\nCalcula e recalcula rotas" as planejador <<container>>
+    rectangle "Serviço de Telemetria\n[Container: Node.js]\nRecebe dados dos AGVs e gera alertas" as telemetria <<container>>
+    database "Banco de Dados\n[Container: PostgreSQL]\nOrdens, missões, rotas, AGVs e leituras" as bd
+    queue "RabbitMQ\n[Container: RabbitMQ]\nFila de ordens (com prioridade) e alertas" as fila
+    queue "Broker MQTT\n[Container: Mosquitto]\nComunicação com os AGVs" as broker
+}
+
+rectangle "API de Geolocalização\n[Sistema externo]" as geo <<externo>>
+rectangle "API de Armazéns (WMS)\n[Sistema externo]" as wms <<externo>>
+rectangle "API de Tráfego\n[Sistema externo]" as trafego <<externo>>
+rectangle "AGVs\n[Sistema externo]\nVeículos autônomos" as agv <<externo>>
+
+operador --> web : Utiliza\n[HTTPS]
+web --> api : Requisições\n[HTTPS / REST JSON]
+api --> web : Status em tempo real\n[WebSocket]
+api --> bd : Lê e grava\n[SQL]
+api --> geo : Valida pontos\n[HTTPS / REST]
+api --> wms : Consulta e reserva material\n[HTTPS / REST]
+api --> fila : Publica ordens\n[AMQP]
+fila --> api : Entrega ordens e alertas\n[AMQP]
+api --> planejador : Calcula / recalcula rota\n[gRPC]
+planejador --> geo : Dados de trajeto\n[HTTPS / REST]
+planejador --> bd : Mapa do parque\n[SQL]
+trafego --> api : Informa bloqueios\n[HTTPS webhook]
+planejador --> trafego : Consulta condições\n[HTTPS / REST]
+api --> broker : Missões, paradas e rotas\n[MQTT]
+broker --> agv : Comandos\n[MQTT]
+agv --> broker : Telemetria e confirmações\n[MQTT]
+broker --> telemetria : Telemetria\n[MQTT]
+telemetria --> bd : Salva leituras\n[SQL]
+telemetria --> fila : Publica alertas\n[AMQP]
+
+@enduml
