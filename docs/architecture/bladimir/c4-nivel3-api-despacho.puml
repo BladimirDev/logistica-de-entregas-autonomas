@@ -1,0 +1,44 @@
+@startuml
+title C4 Nivel 3 - Componentes da API de Orquestração (Despacho)
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam rectangle {
+    BackgroundColor<<componente>> #85BBF0
+    BackgroundColor<<container>> #1168BD
+    FontColor<<container>> #FFFFFF
+    BackgroundColor<<externo>> #999999
+    FontColor<<externo>> #FFFFFF
+}
+
+actor "Operador Logístico" as operador
+rectangle "Aplicação Web\n[Container: React]" as web <<container>>
+
+rectangle "API de Orquestração\n[Container: Node.js + NestJS]" {
+    rectangle "DespachoController\n[Componente: REST Controller]" as ctrl <<componente>>
+    rectangle "DespachoService\n[Componente: implementa IDespachoService]\nRegra da bateria" as svc <<componente>>
+    rectangle "MissaoRepository\n[Componente: TypeORM]\nImplementa IMissaoRepository" as repo <<componente>>
+    rectangle "PlanejadorClient\n[Componente: cliente gRPC]\nUsa IPlanejadorRotas" as cliente <<componente>>
+    rectangle "MqttService\n[Componente: MQTT.js]\nUsa IBrokerMqtt" as mqtt <<componente>>
+}
+
+rectangle "Planejador de Rotas\n[Container: Python + gRPC]" as planejador <<container>>
+database "Banco de Dados\n[Container: PostgreSQL]" as bd
+queue "Broker MQTT\n[Container: Mosquitto]" as broker
+rectangle "AGVs\n[Sistema externo]" as agv <<externo>>
+
+operador --> web : Utiliza\n[HTTPS]
+web --> ctrl : despachar(DespachoDTO)\n[HTTPS / REST JSON]
+ctrl --> svc : Delega
+svc --> repo : criarMissao() / reservarAgv() / atualizarStatus()
+svc --> cliente : calcularRota()
+svc --> mqtt : publicarMissao() / enviarParaRecarga()
+svc --> web : notificarStatus()\n[WebSocket]
+repo --> bd : SQL\n[TCP 5432]
+cliente --> planejador : calcularRota(RotaRequestDTO)\n[gRPC]
+mqtt --> broker : Publica\n[MQTT]
+broker --> agv : receberMissao()\n[MQTT]
+broker --> svc : onConfirmacao()\n[MQTT]
+
+@enduml
